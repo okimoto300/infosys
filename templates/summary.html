@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}集計 - 出席管理{% endblock %}
+
+{% block content %}
+<section class="card">
+    <h2>出席集計</h2>
+    {% if rows %}
+    <table>
+        <thead>
+            <tr>
+                <th>名前</th>
+                {% for key, label in statuses.items() %}
+                    <th>{{ label }}</th>
+                {% endfor %}
+                <th>合計</th>
+                <th>出席率</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in rows %}
+            <tr>
+                <td class="name">{{ row.name }}</td>
+                {% for key, label in statuses.items() %}
+                    <td>{{ row.counts[key] }}</td>
+                {% endfor %}
+                <td>{{ row.total }}</td>
+                <td>{{ row.rate }}%</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <p class="note">※ 出席率 = (出席 + 遅刻) ÷ 合計記録数</p>
+    {% else %}
+        <p class="empty">集計するデータがありません。</p>
+    {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}出席登録 - 出席管理{% endblock %}
+
+{% block content %}
+<section class="card">
+    <h2>出席登録</h2>
+    <form method="get" action="{{ url_for('index') }}" class="date-form">
+        <label for="date">日付:</label>
+        <input type="date" id="date" name="date" value="{{ selected_date }}">
+        <button type="submit">表示</button>
+    </form>
+
+    {% if members %}
+    <form method="post" action="{{ url_for('save_day_attendance') }}">
+        <input type="hidden" name="date" value="{{ selected_date }}">
+        <table>
+            <thead>
+                <tr>
+                    <th>名前</th>
+                    {% for key, label in statuses.items() %}
+                        <th>{{ label }}</th>
+                    {% endfor %}
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for member in members %}
+                <tr>
+                    <td class="name">{{ member.name }}</td>
+                    {% for key, label in statuses.items() %}
+                    <td class="radio-cell">
+                        <input type="radio"
+                               name="status_{{ member.id }}"
+                               value="{{ key }}"
+                               {% if day_records.get(member.id) == key %}checked{% endif %}>
+                    </td>
+                    {% endfor %}
+                    <td>
+                        <form method="post"
+                              action="{{ url_for('delete_member', member_id=member.id) }}"
+                              onsubmit="return confirm('「{{ member.name }}」を削除しますか？');"
+                              class="inline-form">
+                            <button type="submit" class="btn-danger">削除</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <button type="submit" class="btn-primary">出席状況を保存</button>
+    </form>
+    {% else %}
+        <p class="empty">メンバーが登録されていません。下のフォームから追加してください。</p>
+    {% endif %}
+</section>
+
+<section class="card">
+    <h2>メンバー追加</h2>
+    <form method="post" action="{{ url_for('add_member') }}" class="add-form">
+        <input type="text" name="name" placeholder="名前を入力" required>
+        <button type="submit" class="btn-primary">追加</button>
+    </form>
+</section>
+{% endblock %}
