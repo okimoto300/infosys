@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<!--
+  数当てゲーム（はじめてのプログラム）
+
+  このファイルは「HTML」「CSS」「JavaScript」という3つの言語でできています。
+  ・HTML … 画面に何を表示するか（見た目の骨組み）
+  ・CSS  … それをどう飾るか（色や大きさなどのデザイン）
+  ・JavaScript … 動き（ボタンを押したときの処理など）
+
+  使い方: このファイルをダブルクリックすると、ブラウザで開いて遊べます。
+-->
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>数当てゲーム</title>
+
+  <!-- ここから CSS（見た目のデザイン）------------------------------- -->
+  <style>
+    body {
+      font-family: sans-serif;          /* 文字の種類 */
+      text-align: center;               /* 中央ぞろえ */
+      background: #f0f4ff;              /* 背景の色 */
+      padding-top: 50px;
+    }
+    .card {
+      display: inline-block;
+      background: white;
+      padding: 30px 40px;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    h1 { color: #3355cc; }
+    input {
+      font-size: 20px;
+      padding: 8px;
+      width: 100px;
+      text-align: center;
+    }
+    button {
+      font-size: 18px;
+      padding: 8px 20px;
+      margin-left: 8px;
+      background: #3355cc;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button:hover { background: #2244bb; }
+    #message {
+      font-size: 20px;
+      margin-top: 20px;
+      min-height: 28px;
+    }
+    #count { color: #888; margin-top: 10px; }
+  </style>
+</head>
+
+<body>
+  <!-- ここから HTML（画面の骨組み）---------------------------------- -->
+  <div class="card">
+    <h1>🎯 数当てゲーム</h1>
+    <p>1〜100 の数字を当ててね！</p>
+
+    <!-- 数字を入力する欄 -->
+    <input type="number" id="guess" min="1" max="100" placeholder="?">
+    <!-- 押すと checkAnswer 関数が動くボタン -->
+    <button onclick="checkAnswer()">こたえる</button>
+
+    <!-- メッセージを表示する場所（最初は空っぽ） -->
+    <p id="message"></p>
+    <p id="count">挑戦回数: 0 回</p>
+
+    <!-- もう一度遊ぶボタン -->
+    <button onclick="newGame()">もう一度</button>
+  </div>
+
+  <!-- ここから JavaScript（動きの処理）------------------------------ -->
+  <script>
+    // コンピュータが思い浮かべる「正解の数字」を入れておく箱（変数）
+    let answer;
+    // 何回挑戦したかを数える箱
+    let count;
+
+    // ゲームを始める（正解をランダムに決める）関数
+    function newGame() {
+      // Math.random() は 0〜1 の乱数。これで 1〜100 の整数を作る
+      answer = Math.floor(Math.random() * 100) + 1;
+      count = 0;
+      document.getElementById("message").textContent = "";
+      document.getElementById("count").textContent = "挑戦回数: 0 回";
+      document.getElementById("guess").value = "";
+    }
+
+    // 「こたえる」ボタンを押したときに動く関数
+    function checkAnswer() {
+      // 入力された文字を数字に変換して取り出す
+      const guess = Number(document.getElementById("guess").value);
+      const message = document.getElementById("message");
+
+      // 1〜100 以外が入力されたときの注意
+      if (!guess || guess < 1 || guess > 100) {
+        message.textContent = "⚠️ 1〜100 の数字を入れてね";
+        return; // ここで処理を終える
+      }
+
+      // 挑戦回数を 1 増やす
+      count = count + 1;
+      document.getElementById("count").textContent = "挑戦回数: " + count + " 回";
+
+      // 正解と比べて、メッセージを変える（if = もし〜なら）
+      if (guess === answer) {
+        message.textContent = "🎉 正解！ " + count + " 回で当たりました！";
+      } else if (guess < answer) {
+        message.textContent = "⬆️ もっと大きいよ";
+      } else {
+        message.textContent = "⬇️ もっと小さいよ";
+      }
+    }
+
+    // ページを開いた瞬間に、最初のゲームを始める
+    newGame();
+  </script>
+</body>
+</html>
