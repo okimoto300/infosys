@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import html
+import re
 import sys
 from argparse import Namespace
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -21,6 +22,14 @@ from urllib.parse import parse_qs, urlparse
 # 既存の CLI ロジックを再利用する
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import deckmgr  # noqa: E402
+
+
+# slug は識別子のみ許可（パストラバーサル等を防ぐためサーバー側で一元検証）
+SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
+
+
+def _valid_slug(slug: str) -> bool:
+    return bool(SLUG_RE.fullmatch(slug))
 
 
 def _safe(fn, *args):
@@ -166,6 +175,10 @@ class Handler(BaseHTTPRequestHandler):
         u = urlparse(self.path)
         q = parse_qs(u.query)
         slug = (q.get("slug", [""])[0]).strip()
+        # slug を要するルートは、処理に渡す前に必ず形式を検証する
+        if u.path in ("/build", "/preview", "/sync") and not _valid_slug(slug):
+            self._send(dashboard_html("不正な slug です（英小文字・数字・ハイフンのみ）"), 400)
+            return
         if u.path == "/":
             self._send(dashboard_html())
         elif u.path == "/build" and slug:
@@ -190,6 +203,9 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/new":
             slug = (form.get("slug", [""])[0]).strip()
             name = (form.get("name", [""])[0]).strip()
+            if not _valid_slug(slug):
+                self._send(dashboard_html("不正な slug です（英小文字・数字・ハイフンのみ、64文字以内）"), 400)
+                return
             _, err = _safe(deckmgr.cmd_new, Namespace(slug=slug, name=name))
             msg = (f"作成失敗: {err}" if err
                    else f"企業 '{slug}' を作成しました（clients/{slug}/config.yaml）")
