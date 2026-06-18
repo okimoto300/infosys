@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import html
 import sys
+from argparse import Namespace
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -52,6 +53,7 @@ PAGE = """<!doctype html>
   a.btn {{ display:inline-block; padding:6px 14px; border-radius:6px; background:#0b6bcb;
            color:#fff; text-decoration:none; font-size:13px; margin-right:6px; }}
   a.btn.secondary {{ background:#eef2f6; color:#0b3d63; }}
+  a.btn.warnbtn {{ background:#b5550f; }}
   pre {{ background:#0f1722; color:#d6e2ef; padding:18px; border-radius:8px; overflow:auto;
          font-size:13px; line-height:1.5; }}
   .note {{ font-size:13px; color:#5b6b7b; }}
@@ -96,13 +98,18 @@ def dashboard_html(message: str = "") -> str:
         if not cfg:
             continue
         state = deckmgr._drift_state(cfg)
+        sync_btn = (
+            f'<a class="btn warnbtn" href="/sync?slug={slug}">追従</a>'
+            if state.startswith("要追従") else ""
+        )
         rows.append(
             f"<tr><td><strong>{html.escape(slug)}</strong></td>"
             f"<td>{html.escape(str(cfg.get('client_name','')))}</td>"
             f"<td>{html.escape(str(cfg.get('base_master_version','?')))}</td>"
             f"<td>{_badge(state)}</td>"
             f'<td><a class="btn" href="/build?slug={slug}">ビルド</a>'
-            f'<a class="btn secondary" href="/preview?slug={slug}">プレビュー</a></td></tr>'
+            f'<a class="btn secondary" href="/preview?slug={slug}">プレビュー</a>'
+            f"{sync_btn}</td></tr>"
         )
     table = (
         "<table><tr><th>slug</th><th>会社名</th><th>基準Ver</th><th>状態</th><th>操作</th></tr>"
@@ -111,6 +118,23 @@ def dashboard_html(message: str = "") -> str:
         + "</table>"
     )
     parts.append(f'<div class="card"><h2>提案先企業</h2>{table}</div>')
+
+    # 新規企業の追加フォーム
+    parts.append(
+        '<div class="card"><h2>新規提案先企業を追加</h2>'
+        '<form method="post" action="/new">'
+        '<p><label>識別子 (slug)<br>'
+        '<input name="slug" required pattern="[a-z0-9][a-z0-9-]*" '
+        'placeholder="例: sony-corp" style="padding:8px;width:240px;"></label></p>'
+        '<p class="note">英小文字・数字・ハイフンのみ</p>'
+        '<p><label>会社名<br>'
+        '<input name="name" required placeholder="例: ソニー株式会社" '
+        'style="padding:8px;width:320px;"></label></p>'
+        '<p><button class="btn" type="submit" style="border:0;cursor:pointer;">追加する</button></p>'
+        '</form>'
+        '<p class="note">追加後、<code>clients/&lt;slug&gt;/config.yaml</code> で変数や '
+        'セクションの差し替え・削除・追加を設定してください。</p></div>'
+    )
     return PAGE.format(body="".join(parts))
 
 
@@ -150,8 +174,28 @@ class Handler(BaseHTTPRequestHandler):
             self._send(dashboard_html(msg))
         elif u.path == "/preview" and slug:
             self._send(preview_html(slug))
+        elif u.path == "/sync" and slug:
+            _, err = _safe(deckmgr.cmd_sync, Namespace(slug=slug))
+            msg = (f"追従失敗: {err}" if err
+                   else f"{slug} を最新マスターに追従済みとして記録しました")
+            self._send(dashboard_html(msg))
         else:
             self._send(PAGE.format(body='<div class="card">ページが見つかりません。'
+                                        '<a href="/">トップへ</a></div>'), 404)
+
+    def do_POST(self) -> None:  # noqa: N802
+        u = urlparse(self.path)
+        length = int(self.headers.get("Content-Length", 0) or 0)
+        form = parse_qs(self.rfile.read(length).decode("utf-8")) if length else {}
+        if u.path == "/new":
+            slug = (form.get("slug", [""])[0]).strip()
+            name = (form.get("name", [""])[0]).strip()
+            _, err = _safe(deckmgr.cmd_new, Namespace(slug=slug, name=name))
+            msg = (f"作成失敗: {err}" if err
+                   else f"企業 '{slug}' を作成しました（clients/{slug}/config.yaml）")
+            self._send(dashboard_html(msg))
+        else:
+            self._send(PAGE.format(body='<div class="card">不正なリクエストです。'
                                         '<a href="/">トップへ</a></div>'), 404)
 
     def log_message(self, *_args) -> None:  # アクセスログを抑制
