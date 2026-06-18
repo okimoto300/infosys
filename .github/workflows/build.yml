@@ -1,0 +1,50 @@
+name: Build Decks
+
+# マスターまたはクライアント資料が更新されたら、全クライアントの最終資料を
+# Markdown / HTML に自動ビルドし、成果物（Artifacts）として保存する。
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "master/**"
+      - "clients/**"
+      - "tools/**"
+      - ".github/workflows/build.yml"
+  pull_request:
+    paths:
+      - "master/**"
+      - "clients/**"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # ドリフト検出に履歴が必要
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: ドリフト状態を表示
+        run: python3 tools/deckmgr.py list
+
+      - name: 全クライアントの資料をビルド (Markdown)
+        run: python3 tools/deckmgr.py build --all
+
+      - name: HTML にレンダリング (Marp)
+        run: |
+          for dir in build/*/; do
+            slug=$(basename "$dir")
+            echo "Rendering $slug ..."
+            npx --yes @marp-team/marp-cli "build/$slug/deck.md" -o "build/$slug/deck.html"
+          done
+
+      - name: 成果物をアップロード
+        uses: actions/upload-artifact@v4
+        with:
+          name: decks
+          path: build/
+          retention-days: 30

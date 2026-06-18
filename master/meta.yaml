@@ -1,0 +1,24 @@
+# マスター資料のメタ情報
+# version はマスターを大きく更新した際に手動で上げる（セマンティックバージョニング推奨）。
+title: "Infosys ソリューションご提案"
+version: "1.1.0"
+updated: "2026-06-18"
+
+# 全クライアント共通の既定変数。clients/<slug>/config.yaml の variables で上書きできる。
+# deck.md 内では {{VARIABLE_NAME}} で参照する。
+variables:
+  CLIENT_NAME: "（提案先企業名）"
+  PROJECT_NAME: "DX 推進プロジェクト"
+  PRESENTER: "Infosys 営業担当"
+  DATE: "2026-06-18"
+  CONTACT_EMAIL: "sales@infosys.example.com"
+
+# deck.md に含まれるセクション ID（出現順）。差し替え・削除の参照に使う。
+sections:
+  - intro
+  - challenges
+  - solution
+  - benefits
+  - pricing
+  - timeline
+  - closing

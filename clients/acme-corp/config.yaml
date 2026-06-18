@@ -1,0 +1,19 @@
+client_name: Acme 株式会社
+slug: acme-corp
+created: '2026-06-18'
+base_master_version: 1.0.0
+base_commit: 78740e1208f53ee5065a0ca9225553fdaefdfe88
+variables:
+  CLIENT_NAME: Acme 株式会社
+  PROJECT_NAME: 次世代EC基盤 構築プロジェクト
+  PRESENTER: 沖本 隆一郎
+  DATE: '2026-06-18'
+  CONTACT_EMAIL: ryuichiro.okimoto@infosys.com
+override_sections:
+- solution
+remove_sections:
+- pricing
+extra_sections:
+- case-study
+notes: EC領域に注力。価格は別途見積のため pricing は除外し、事例スライドを追加。
+synced: '2026-06-18'
