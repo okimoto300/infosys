@@ -64,7 +64,27 @@ infosys/
 
 ---
 
-## クイックスタート
+## 起動方法（Web ダッシュボード）
+
+ブラウザから一覧確認・ビルド・プレビューを行える管理画面をワンコマンドで起動できます（追加の依存なし）。
+
+```bash
+python3 tools/server.py            # http://localhost:8080 で起動
+python3 tools/server.py --port 9000 # ポートを変更する場合
+```
+
+起動後、ブラウザで `http://localhost:8080` を開くと、マスターのバージョン・各企業の追従状態が一覧表示され、「ビルド」「プレビュー」ボタンから操作できます。停止は `Ctrl+C`。
+
+実際のスライド（HTML）として表示・配布したい場合は Marp を使います（要 Node.js）。
+
+```bash
+python3 tools/deckmgr.py build acme-corp
+npx --yes @marp-team/marp-cli -s build/acme-corp/   # http://localhost:8080 でライブプレビュー
+```
+
+---
+
+## クイックスタート（CLI）
 
 ```bash
 # 1. 全体の状態を確認
