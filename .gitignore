@@ -4,6 +4,9 @@ build/
 # GitHub Pages 公開用に生成される静的サイト（Actions で再生成）
 site/
 
+# レンダリング済み配布用 HTML（ローカル生成物）
+dist/
+
 # Node / Marp
 node_modules/
 *.log
