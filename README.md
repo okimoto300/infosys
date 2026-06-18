@@ -162,6 +162,45 @@ python3 tools/deckmgr.py sync acme-corp
 
 ---
 
+## GitHub Pages での公開
+
+全企業の資料を HTML 化し、インデックスページ付きで GitHub Pages に自動公開できます。
+URL を共有するだけで、関係者がブラウザだけで資料を閲覧できます（手元に Python 環境は不要）。
+
+仕組み: `.github/workflows/pages.yml` が push 時に以下を実行します。
+
+1. 全企業の資料をビルド（`deckmgr build --all`）
+2. 各企業を Marp で HTML 化 → `site/<slug>/index.html`
+3. 企業一覧のインデックスを生成（`tools/gen_index.py`）→ `site/index.html`
+4. GitHub Pages へデプロイ
+
+公開後の URL 構成:
+
+```
+https://<owner>.github.io/<repo>/            # 企業一覧（インデックス）
+https://<owner>.github.io/<repo>/acme-corp/  # 各企業のスライド
+```
+
+### 初回セットアップ
+
+1. リポジトリの **Settings → Pages → Build and deployment → Source** を **GitHub Actions** に設定
+   （ワークフローの `configure-pages` が自動有効化を試みますが、組織設定によっては手動が必要）。
+2. 公開対象ブランチをワークフローの `on.push.branches` に含める
+   （既定では作業ブランチと `main`）。
+3. `github-pages` 環境のデプロイ許可ブランチに、公開元ブランチが含まれていることを確認。
+
+手元で公開内容を事前確認する場合:
+
+```bash
+python3 tools/deckmgr.py build --all
+for d in build/*/; do s=$(basename "$d"); mkdir -p "site/$s"; \
+  npx --yes @marp-team/marp-cli "build/$s/deck.md" --html -o "site/$s/index.html"; done
+python3 tools/gen_index.py --out site
+# site/index.html をブラウザで開く
+```
+
+---
+
 ## 必要環境
 
 - Python 3.9+（`pyyaml`）

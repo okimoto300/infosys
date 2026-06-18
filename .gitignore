@@ -1,6 +1,9 @@
 # ビルド生成物（マスター + カスタマイズから再生成可能なため追跡しない）
 build/
 
+# GitHub Pages 公開用に生成される静的サイト（Actions で再生成）
+site/
+
 # Node / Marp
 node_modules/
 *.log

@@ -1,0 +1,79 @@
+name: Publish to GitHub Pages
+
+# 全企業の資料を HTML 化し、インデックス付きで GitHub Pages に公開する。
+on:
+  push:
+    branches:
+      - claude/zen-dijkstra-8hqnmr
+      - main
+    paths:
+      - "master/**"
+      - "clients/**"
+      - "tools/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+# GitHub Pages へのデプロイに必要な権限
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同時実行は最新のみ（古いデプロイはキャンセル）
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # ドリフト判定に履歴が必要
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 依存をインストール
+        run: pip install pyyaml
+
+      - name: 全企業の資料をビルド (Markdown)
+        run: python3 tools/deckmgr.py build --all
+
+      - name: 各企業を HTML にレンダリング (Marp)
+        run: |
+          mkdir -p site
+          for dir in build/*/; do
+            slug=$(basename "$dir")
+            echo "Rendering $slug ..."
+            mkdir -p "site/$slug"
+            # 1ファイルHTMLとして出力（CSS/JSインライン）
+            npx --yes @marp-team/marp-cli "build/$slug/deck.md" \
+              --html --output "site/$slug/index.html"
+          done
+
+      - name: インデックスページを生成
+        run: python3 tools/gen_index.py --out site
+
+      - name: Pages の設定
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: 成果物をアップロード
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: GitHub Pages へデプロイ
+        id: deployment
+        uses: actions/deploy-pages@v4
