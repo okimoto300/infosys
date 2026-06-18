@@ -28,9 +28,6 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
-        run: pip install pyyaml
-
       - name: ドリフト状態を表示
         run: python3 tools/deckmgr.py list
 

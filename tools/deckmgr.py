@@ -15,7 +15,7 @@
     python3 tools/deckmgr.py sync acme         # 追従済みとして基準を更新
     python3 tools/deckmgr.py render acme        # Marp で HTML を出力（要 npx）
 
-依存: PyYAML（標準的に利用可能）。レンダリングのみ Node/npx の marp-cli を使用。
+依存: なし（Python 3.9+ 標準ライブラリのみ）。レンダリングのみ Node/npx の marp-cli を使用。
 """
 from __future__ import annotations
 
@@ -25,11 +25,6 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-
-try:
-    import yaml
-except ImportError:  # pragma: no cover
-    sys.exit("PyYAML が必要です:  pip install pyyaml")
 
 # ---------------------------------------------------------------------------
 # パス定義
@@ -60,14 +55,170 @@ def _die(msg: str) -> "None":
 def _load_yaml(path: Path) -> dict:
     if not path.exists():
         _die(f"ファイルが見つかりません: {path}")
-    with path.open(encoding="utf-8") as fh:
-        return yaml.safe_load(fh) or {}
+    return _yaml_load(path.read_text(encoding="utf-8")) or {}
 
 
 def _dump_yaml(path: Path, data: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as fh:
-        yaml.safe_dump(data, fh, allow_unicode=True, sort_keys=False)
+    path.write_text(_yaml_dump(data) + "\n", encoding="utf-8")
+
+
+# ---------------------------------------------------------------------------
+# 最小 YAML 入出力（標準ライブラリのみ・本システムが使う範囲に特化）
+#
+# 対応する構文: マッピング / ブロックリスト(`- x`) / フローリスト(`[a, b]`) /
+#   ネスト(インデント) / `'..'`・`".."` クォート / `#` コメント / 空リスト `[]`。
+# 本システムの meta.yaml・config.yaml はこの範囲で完結する。複雑な YAML
+# （アンカー・複数行スカラー等）は扱わない。
+# ---------------------------------------------------------------------------
+def _strip_inline_comment(line: str) -> str:
+    """クォート外にある ` #` 以降をコメントとして除去する。"""
+    in_s = in_d = False
+    for idx, ch in enumerate(line):
+        if ch == "'" and not in_d:
+            in_s = not in_s
+        elif ch == '"' and not in_s:
+            in_d = not in_d
+        elif ch == "#" and not in_s and not in_d and (idx == 0 or line[idx - 1] in " \t"):
+            return line[:idx]
+    return line
+
+
+def _parse_scalar(s: str):
+    s = s.strip()
+    if len(s) >= 2 and s[0] == s[-1] and s[0] in "\"'":
+        body = s[1:-1]
+        if s[0] == "'":
+            return body.replace("''", "'")
+        return body.replace('\\"', '"').replace("\\\\", "\\")
+    if s == "" or s == "~" or s.lower() == "null":
+        return None
+    if s.lower() == "true":
+        return True
+    if s.lower() == "false":
+        return False
+    # 数値・SHA・バージョン等の取り違えを避けるため、その他は文字列のまま扱う
+    return s
+
+
+def _parse_inline(s: str):
+    s = s.strip()
+    if s.startswith("[") and s.endswith("]"):
+        inner = s[1:-1].strip()
+        if not inner:
+            return []
+        return [_parse_scalar(x) for x in inner.split(",")]
+    return _parse_scalar(s)
+
+
+def _yaml_load(text: str):
+    rows: list[tuple[int, str]] = []
+    for raw in text.splitlines():
+        stripped = raw.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        line = _strip_inline_comment(raw)
+        if not line.strip():
+            continue
+        indent = len(line) - len(line.lstrip(" "))
+        rows.append((indent, line.strip()))
+
+    pos = [0]
+
+    def parse_list(indent: int) -> list:
+        items: list = []
+        while pos[0] < len(rows):
+            i, t = rows[pos[0]]
+            if i != indent or not (t == "-" or t.startswith("- ")):
+                break
+            pos[0] += 1
+            item = t[1:].strip() if t.startswith("- ") else ""
+            items.append(_parse_inline(item) if item else None)
+        return items
+
+    def parse_map(indent: int) -> dict:
+        d: dict = {}
+        while pos[0] < len(rows):
+            i, t = rows[pos[0]]
+            if i != indent or t == "-" or t.startswith("- "):
+                break
+            key, sep, rest = t.partition(":")
+            if not sep:
+                pos[0] += 1
+                continue
+            key, rest = key.strip(), rest.strip()
+            pos[0] += 1
+            if rest:
+                d[key] = _parse_inline(rest)
+            elif pos[0] < len(rows):
+                ni, nt = rows[pos[0]]
+                if (nt == "-" or nt.startswith("- ")) and ni >= indent:
+                    d[key] = parse_list(ni)
+                elif ni > indent:
+                    d[key] = parse_map(ni)
+                else:
+                    d[key] = None
+            else:
+                d[key] = None
+        return d
+
+    if not rows:
+        return {}
+    first = rows[0][1]
+    return parse_list(rows[0][0]) if (first == "-" or first.startswith("- ")) else parse_map(rows[0][0])
+
+
+_NUM_RE = re.compile(r"^[-+]?(\d+|\d*\.\d+)$")
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_RESERVED = {"true", "false", "null", "yes", "no", "on", "off", "~"}
+
+
+def _needs_quote(s: str) -> bool:
+    if s == "":
+        return True
+    if _DATE_RE.match(s) or _NUM_RE.match(s) or s.lower() in _RESERVED:
+        return True
+    if s[0] in "-?:,[]{}#&*!|>'\"%@`":
+        return True
+    if ": " in s or s.endswith(":") or " #" in s or s.strip() != s:
+        return True
+    return False
+
+
+def _fmt_scalar(v) -> str:
+    if v is None:
+        return "''"
+    if v is True:
+        return "true"
+    if v is False:
+        return "false"
+    if isinstance(v, (int, float)):
+        return str(v)
+    s = str(v)
+    if _needs_quote(s):
+        return "'" + s.replace("'", "''") + "'"
+    return s
+
+
+def _yaml_dump(data, indent: int = 0) -> str:
+    pad = "  " * indent
+    lines: list[str] = []
+    for k, v in data.items():
+        if isinstance(v, dict):
+            if v:
+                lines.append(f"{pad}{k}:")
+                lines.append(_yaml_dump(v, indent + 1))
+            else:
+                lines.append(f"{pad}{k}: {{}}")
+        elif isinstance(v, list):
+            if v:
+                lines.append(f"{pad}{k}:")
+                lines.extend(f"{pad}- {_fmt_scalar(item)}" for item in v)
+            else:
+                lines.append(f"{pad}{k}: []")
+        else:
+            lines.append(f"{pad}{k}: {_fmt_scalar(v)}")
+    return "\n".join(lines)
 
 
 def _git(*args: str) -> tuple[int, str]:

@@ -36,9 +36,6 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: 依存をインストール
-        run: pip install pyyaml
-
       - name: 全企業の資料をビルド (Markdown)
         run: python3 tools/deckmgr.py build --all
 

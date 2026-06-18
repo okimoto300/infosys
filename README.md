@@ -203,5 +203,5 @@ python3 tools/gen_index.py --out site
 
 ## 必要環境
 
-- Python 3.9+（`pyyaml`）
+- Python 3.9+（標準ライブラリのみ。外部パッケージ不要 ＝ `pip install` 不要）
 - レンダリングのみ Node.js（`npx @marp-team/marp-cli`）
