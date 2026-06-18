@@ -1,0 +1,17 @@
+# ビルド生成物（マスター + カスタマイズから再生成可能なため追跡しない）
+build/
+
+# Node / Marp
+node_modules/
+*.log
+
+# OS / エディタ
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Python
+__pycache__/
+*.pyc
